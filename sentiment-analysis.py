@@ -113,4 +113,6 @@ def main():
     line_plot(tweets)
     write_to_file(tweets)
 
-main()
+
+if __name__ == '__main__':
+    main()
