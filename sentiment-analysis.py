@@ -36,7 +36,7 @@ def preprocessing(tweets):
     for i in range(len(tweets['text'])):
         try:
             tweets['tweetos'][i] = tweets['text'].str.split(':')[i][0]
-            # print(tweets['tweetos'][i])
+            print(tweets['tweetos'][i])
         except AttributeError:
             tweets['tweetos'][i] = 'other'
 
@@ -48,7 +48,7 @@ def preprocessing(tweets):
     # Removing RT@
 
     for i in range(len(tweets['text'])):
-        m = re.search('(?<=:)(.*)', tweets['text'][i])
+        m = re.search("(?<=:)(.*)", tweets['text'][i])
 
         if tweets['text'].str.contains('RT @')[i] == True:
             try:
