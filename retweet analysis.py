@@ -1,3 +1,4 @@
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.grid_search import GridSearchCV
 
 import string
@@ -8,6 +9,7 @@ from nltk.corpus import stopwords
 from nltk.sentiment.util import mark_negation
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB, BernoulliNB
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
@@ -22,7 +24,7 @@ import matplotlib.pyplot as plt
 # Read data
 from sklearn.svm import LinearSVC
 from sklearn.metrics import confusion_matrix
-from sklearn import metrics, svm
+from sklearn import metrics, svm, tree
 from sklearn.metrics import roc_curve, auc
 import dill
 from sklearn.externals import joblib
@@ -123,15 +125,19 @@ def preprocessing(tweets):
     return tweets
 
 
+def formatt(x):
+    if x == 'FALSE':
+        return 0
+    return 1
 
-def validation(train_X,train_y,test_X,test_y,data):
+def validation_unigram_bigram(train_X,train_y,test_X,test_y,data):
     print("validating..")
 
     # cv = ShuffleSplit(n_splits=3, test_size=0.2, random_state=0)
     # gammas = np.logspace(-6, -1, 10)
     # parameters = {'kernel': ('linear', 'rbf'), 'C': [1, 10]}
-
-    clf = Pipeline([
+    prediction = dict()
+    clf_svm = Pipeline([
         ('vectorizer', CountVectorizer(analyzer="word",
                                        ngram_range=(1, 2),
                                        tokenizer=word_tokenize,
@@ -139,11 +145,168 @@ def validation(train_X,train_y,test_X,test_y,data):
                                        preprocessor=lambda text: text.replace("<br />", " "), )),
         ('classifier',LinearSVC())
     ])
+    clf_multi = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(1, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', MultinomialNB())
+    ])
+    clf_bernoulli = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(1, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', BernoulliNB())
+    ])
+    clf_logisitic = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(1, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', LogisticRegression())
+    ])
+    clf_forest = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(1, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', RandomForestClassifier())
+    ])
+    #scikit-learn uses an optimised version of the CART algorithm.
+    clf_cart = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(1, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', tree.DecisionTreeClassifier())
+    ])
+    clf_knn = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(1, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', KNeighborsClassifier(n_neighbors=3))
+    ])
+
+    print("Predicting..")
+    predicted = cross_val_predict(clf_bernoulli, test_X, test_y, cv=10)
+    prediction['BernoulliNB'] = predicted
+
+    predicted = cross_val_predict(clf_cart, test_X, test_y, cv=10)
+    prediction['Cart'] = predicted
+
+    predicted = cross_val_predict(clf_forest, test_X, test_y, cv=10)
+    prediction['RandomForest'] = predicted
+
+    predicted = cross_val_predict(clf_knn, test_X, test_y, cv=10)
+    prediction['KNN'] = predicted
+
+    predicted = cross_val_predict(clf_logisitic, test_X, test_y, cv=10)
+    prediction['LogisticRegression'] = predicted
+
+    predicted = cross_val_predict(clf_multi, test_X, test_y, cv=10)
+    prediction['MultinomialNB'] = predicted
+
+    predicted = cross_val_predict(clf_svm, test_X, test_y, cv=10)
+    prediction['SVM'] = predicted
+
+
     print("validating..")
     X = data["text_new"]
     Y = data["isRetweet"]
-    scores = cross_val_score(clf, X, Y, cv=10)
-    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))                #0.86+-0.4
+
+    scores = cross_val_score(clf_bernoulli, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))                #0.80+-0.4
+
+    scores = cross_val_score(clf_cart, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_forest, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_knn, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_logisitic, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_multi, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_svm, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    print("validating..")
+    # predicted = cross_val_predict(clf, test_X, test_y, cv=10)
+    # prediction['uni_svm'] = predicted
+    # print(predicted)
+    # print(metrics.accuracy_score(test_y, predicted))  # 0.84
+
+    print("Confusion matrix for BernoulliNB Unigram..")
+    print( metrics.classification_report(test_y, prediction['BernoulliNB'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for Cart Unigram..")
+    print(metrics.classification_report(test_y, prediction['Cart'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for RandomForest Unigram..")
+    print(metrics.classification_report(test_y, prediction['RandomForest'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for KNN Unigram..")
+    print(metrics.classification_report(test_y, prediction['KNN'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for Logistic Regression Unigram..")
+    print(metrics.classification_report(test_y, prediction['LogisticRegression'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for MultinomialNB Unigram..")
+    print(metrics.classification_report(test_y, prediction['MultinomialNB'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for SVM Unigram..")
+    print(metrics.classification_report(test_y, prediction['SVM'], target_names=["TRUE", "FALSE"]))
+
+    vfunc = np.vectorize(formatt)
+    cmp = 0
+    colors = ['b', 'g', 'y', 'm', 'k','darkorange','aqua']
+    for model, predicted in prediction.items():
+        # print(vfunc(predicted))
+        # print(test_y)
+        # print(data["Sentiment"])
+        # print(np.array(data["Sentiment"]))
+        myarray = np.array(test_y)
+        # print(myarray)
+        newarray = []
+        for i in range(0, len(test_y)):
+            test_y[i] = int(test_y[i])
+            newarray.append(test_y[i])
+        # print(newarray)
+        false_positive_rate, true_positive_rate, thresholds = roc_curve(newarray, vfunc(predicted))
+        # roc_auc = auc(false_positive_rate, true_positive_rate)
+        # plt.plot(false_positive_rate, true_positive_rate, colors[cmp], label='%s: AUC %0.2f' % (model, roc_auc))
+        plt.plot(false_positive_rate, true_positive_rate, colors[cmp], label='%s:' % (model))
+
+        cmp += 1
+
+    plt.title('Classifiers comparaison with ROC')
+    plt.legend(loc='lower right')
+    plt.plot([0, 1], [0, 1], 'r--')
+    plt.xlim([-0.1, 1.2])
+    plt.ylim([-0.1, 1.2])
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.show()
+
+    # filename = 'unigram_linear.sav'
+    # with open(filename, 'wb') as f:
+    #     dill.dump(data, f)
+    # with open(filename, 'rb') as f:
+    #     data = dill.load(f)
+
     # estimator = svm.SVC(kernel='linear')
     # classifier = GridSearchCV(estimator,parameters)
     #
@@ -170,26 +333,432 @@ def validation(train_X,train_y,test_X,test_y,data):
     # scores = cross_val_score(classifier, X, Y, cv=10)
     # print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
     # print(classifier.score(test_X, test_y))
-    print("validating..")
-    predicted = cross_val_predict(clf, test_X, test_y, cv=10)
-    print(predicted)
-    print(metrics.accuracy_score(test_y, predicted))            #0.84
+
     # clf.fit(train_X, train_y)
     # print("validating..")
 
+
+def validation_unigram(train_X, train_y, test_X, test_y, data):
+    print("validating..")
+
+    # cv = ShuffleSplit(n_splits=3, test_size=0.2, random_state=0)
+    # gammas = np.logspace(-6, -1, 10)
+    # parameters = {'kernel': ('linear', 'rbf'), 'C': [1, 10]}
+    prediction = dict()
+    clf_svm = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', LinearSVC())
+    ])
+    clf_multi = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', MultinomialNB())
+    ])
+    clf_bernoulli = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', BernoulliNB())
+    ])
+    clf_logisitic = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', LogisticRegression())
+    ])
+    clf_forest = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', RandomForestClassifier())
+    ])
+    # scikit-learn uses an optimised version of the CART algorithm.
+    clf_cart = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', tree.DecisionTreeClassifier())
+    ])
+    clf_knn = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', KNeighborsClassifier(n_neighbors=3))
+    ])
+
+    print("Predicting..")
+    predicted = cross_val_predict(clf_bernoulli, test_X, test_y, cv=10)
+    prediction['BernoulliNB'] = predicted
+
+    predicted = cross_val_predict(clf_cart, test_X, test_y, cv=10)
+    prediction['Cart'] = predicted
+
+    predicted = cross_val_predict(clf_forest, test_X, test_y, cv=10)
+    prediction['RandomForest'] = predicted
+
+    predicted = cross_val_predict(clf_knn, test_X, test_y, cv=10)
+    prediction['KNN'] = predicted
+
+    predicted = cross_val_predict(clf_logisitic, test_X, test_y, cv=10)
+    prediction['LogisticRegression'] = predicted
+
+    predicted = cross_val_predict(clf_multi, test_X, test_y, cv=10)
+    prediction['MultinomialNB'] = predicted
+
+    predicted = cross_val_predict(clf_svm, test_X, test_y, cv=10)
+    prediction['SVM'] = predicted
+
+    print("validating..")
+    X = data["text_new"]
+    Y = data["isRetweet"]
+
+    scores = cross_val_score(clf_bernoulli, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.80+-0.4
+
+    scores = cross_val_score(clf_cart, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_forest, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_knn, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_logisitic, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_multi, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_svm, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    print("validating..")
+    # predicted = cross_val_predict(clf, test_X, test_y, cv=10)
+    # prediction['uni_svm'] = predicted
+    # print(predicted)
+    # print(metrics.accuracy_score(test_y, predicted))  # 0.84
+
+    print("Confusion matrix for BernoulliNB Unigram..")
+    print(metrics.classification_report(test_y, prediction['BernoulliNB'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for Cart Unigram..")
+    print(metrics.classification_report(test_y, prediction['Cart'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for RandomForest Unigram..")
+    print(metrics.classification_report(test_y, prediction['RandomForest'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for KNN Unigram..")
+    print(metrics.classification_report(test_y, prediction['KNN'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for Logistic Regression Unigram..")
+    print(metrics.classification_report(test_y, prediction['LogisticRegression'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for MultinomialNB Unigram..")
+    print(metrics.classification_report(test_y, prediction['MultinomialNB'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for SVM Unigram..")
+    print(metrics.classification_report(test_y, prediction['SVM'], target_names=["TRUE", "FALSE"]))
+
+    vfunc = np.vectorize(formatt)
+    cmp = 0
+    colors = ['b', 'g', 'y', 'm', 'k', 'darkorange', 'aqua']
+    for model, predicted in prediction.items():
+        # print(vfunc(predicted))
+        # print(test_y)
+        # print(data["Sentiment"])
+        # print(np.array(data["Sentiment"]))
+        myarray = np.array(test_y)
+        # print(myarray)
+        newarray = []
+        for i in range(0, len(test_y)):
+            test_y[i] = int(test_y[i])
+            newarray.append(test_y[i])
+        # print(newarray)
+        false_positive_rate, true_positive_rate, thresholds = roc_curve(newarray, vfunc(predicted))
+        # roc_auc = auc(false_positive_rate, true_positive_rate)
+        # plt.plot(false_positive_rate, true_positive_rate, colors[cmp], label='%s: AUC %0.2f' % (model, roc_auc))
+        plt.plot(false_positive_rate, true_positive_rate, colors[cmp], label='%s:' % (model))
+
+        cmp += 1
+
+    plt.title('Classifiers comparaison with ROC')
+    plt.legend(loc='lower right')
+    plt.plot([0, 1], [0, 1], 'r--')
+    plt.xlim([-0.1, 1.2])
+    plt.ylim([-0.1, 1.2])
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.show()
+
+    # filename = 'unigram_linear.sav'
+    # with open(filename, 'wb') as f:
+    #     dill.dump(data, f)
+    # with open(filename, 'rb') as f:
+    #     data = dill.load(f)
+
+    # estimator = svm.SVC(kernel='linear')
+    # classifier = GridSearchCV(estimator,parameters)
+    #
+    # # classifier = GridSearchCV(clf, cv=10, param_grid=dict(gamma=gammas))
+    # print(classifier)
+    # tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4],
+    #                      'C': [1, 10, 100, 1000]},
+    #                     {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
+    #
+    #
+    # scores = ['precision', 'recall']
+    #
+    # for score in scores:
+    #     print("# Tuning hyper-parameters for %s" % score)
+    #     print()
+    #
+    #     clf = GridSearchCV(svm.SVC(C=1), tuned_parameters, cv=5,
+    #                        scoring='%s_macro' % score)
+    #     print(clf)
+
+    # clf.fit(X,Y)
+    # print(clf.best_score_)
+    # print(clf.best_score_)
+    # scores = cross_val_score(classifier, X, Y, cv=10)
+    # print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+    # print(classifier.score(test_X, test_y))
+
+    # clf.fit(train_X, train_y)
+    # print("validating..")
+
+
+def validation_bigram(train_X, train_y, test_X, test_y, data):
+
+    print("validating..")
+
+    # cv = ShuffleSplit(n_splits=3, test_size=0.2, random_state=0)
+    # gammas = np.logspace(-6, -1, 10)
+    # parameters = {'kernel': ('linear', 'rbf'), 'C': [1, 10]}
+    prediction = dict()
+    clf_svm = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(2, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier',LinearSVC())
+    ])
+    clf_multi = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(2, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', MultinomialNB())
+    ])
+    clf_bernoulli = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(2, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', BernoulliNB())
+    ])
+    clf_logisitic = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(2, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', LogisticRegression())
+    ])
+    clf_forest = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(1, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', RandomForestClassifier())
+    ])
+    #scikit-learn uses an optimised version of the CART algorithm.
+    clf_cart = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(2, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', tree.DecisionTreeClassifier())
+    ])
+    clf_knn = Pipeline([
+        ('vectorizer', CountVectorizer(analyzer="word",
+                                       ngram_range=(2, 2),
+                                       tokenizer=word_tokenize,
+                                       # tokenizer=lambda text: mark_negation(word_tokenize(text)),
+                                       preprocessor=lambda text: text.replace("<br />", " "), )),
+        ('classifier', KNeighborsClassifier(n_neighbors=3))
+    ])
+
+    print("Predicting..")
+    predicted = cross_val_predict(clf_bernoulli, test_X, test_y, cv=10)
+    prediction['BernoulliNB'] = predicted
+
+    predicted = cross_val_predict(clf_cart, test_X, test_y, cv=10)
+    prediction['Cart'] = predicted
+
+    predicted = cross_val_predict(clf_forest, test_X, test_y, cv=10)
+    prediction['RandomForest'] = predicted
+
+    predicted = cross_val_predict(clf_knn, test_X, test_y, cv=10)
+    prediction['KNN'] = predicted
+
+    predicted = cross_val_predict(clf_logisitic, test_X, test_y, cv=10)
+    prediction['LogisticRegression'] = predicted
+
+    predicted = cross_val_predict(clf_multi, test_X, test_y, cv=10)
+    prediction['MultinomialNB'] = predicted
+
+    predicted = cross_val_predict(clf_svm, test_X, test_y, cv=10)
+    prediction['SVM'] = predicted
+
+
+    print("validating..")
+    X = data["text_new"]
+    Y = data["isRetweet"]
+
+    scores = cross_val_score(clf_bernoulli, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))                #0.80+-0.4
+
+    scores = cross_val_score(clf_cart, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_forest, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_knn, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_logisitic, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_multi, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    scores = cross_val_score(clf_svm, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
+
+    print("validating..")
+    # predicted = cross_val_predict(clf, test_X, test_y, cv=10)
+    # prediction['uni_svm'] = predicted
+    # print(predicted)
+    # print(metrics.accuracy_score(test_y, predicted))  # 0.84
+
+    print("Confusion matrix for BernoulliNB Bigram..")
+    print( metrics.classification_report(test_y, prediction['BernoulliNB'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for Cart Bigram..")
+    print(metrics.classification_report(test_y, prediction['Cart'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for RandomForest Bigram..")
+    print(metrics.classification_report(test_y, prediction['RandomForest'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for KNN Bigram..")
+    print(metrics.classification_report(test_y, prediction['KNN'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for Logistic Regression Bigram..")
+    print(metrics.classification_report(test_y, prediction['LogisticRegression'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for MultinomialNB Bigram..")
+    print(metrics.classification_report(test_y, prediction['MultinomialNB'], target_names=["TRUE", "FALSE"]))
+
+    print("Confusion matrix for SVM Bigram..")
+    print(metrics.classification_report(test_y, prediction['SVM'], target_names=["TRUE", "FALSE"]))
+
+    vfunc = np.vectorize(formatt)
+    cmp = 0
+    colors = ['b', 'g', 'y', 'm', 'k','darkorange','aqua']
+    for model, predicted in prediction.items():
+        # print(vfunc(predicted))
+        # print(test_y)
+        # print(data["Sentiment"])
+        # print(np.array(data["Sentiment"]))
+        myarray = np.array(test_y)
+        # print(myarray)
+        newarray = []
+        for i in range(0, len(test_y)):
+            test_y[i] = int(test_y[i])
+            newarray.append(test_y[i])
+        # print(newarray)
+        false_positive_rate, true_positive_rate, thresholds = roc_curve(newarray, vfunc(predicted))
+        # roc_auc = auc(false_positive_rate, true_positive_rate)
+        # plt.plot(false_positive_rate, true_positive_rate, colors[cmp], label='%s: AUC %0.2f' % (model, roc_auc))
+        plt.plot(false_positive_rate, true_positive_rate, colors[cmp], label='%s:' % (model))
+
+        cmp += 1
+
+    plt.title('Classifiers comparaison with ROC')
+    plt.legend(loc='lower right')
+    plt.plot([0, 1], [0, 1], 'r--')
+    plt.xlim([-0.1, 1.2])
+    plt.ylim([-0.1, 1.2])
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.show()
+
+    # filename = 'unigram_linear.sav'
+    # with open(filename, 'wb') as f:
+    #     dill.dump(data, f)
+    # with open(filename, 'rb') as f:
+    #     data = dill.load(f)
+
+    # estimator = svm.SVC(kernel='linear')
+    # classifier = GridSearchCV(estimator,parameters)
+    #
+    # # classifier = GridSearchCV(clf, cv=10, param_grid=dict(gamma=gammas))
+    # print(classifier)
+    # tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4],
+    #                      'C': [1, 10, 100, 1000]},
+    #                     {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
+    #
+    #
+    # scores = ['precision', 'recall']
+    #
+    # for score in scores:
+    #     print("# Tuning hyper-parameters for %s" % score)
+    #     print()
+    #
+    #     clf = GridSearchCV(svm.SVC(C=1), tuned_parameters, cv=5,
+    #                        scoring='%s_macro' % score)
+    #     print(clf)
+
+        # clf.fit(X,Y)
+        # print(clf.best_score_)
+        # print(clf.best_score_)
+    # scores = cross_val_score(classifier, X, Y, cv=10)
+    # print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+    # print(classifier.score(test_X, test_y))
+
+    # clf.fit(train_X, train_y)
+    # print("validating..")
 
 def main():
     print("Reading Data..")
     data = read_data()
     print("Data Fetched")
+
     # print(data["review"][0])
     print("Preprocessing")
     data = preprocessing(data)
-    # filename = 'preprocessed_data.sav'
+    filename = 'preprocessed_data.sav'
     # # with open(filename, 'wb') as f:
     # #     dill.dump(data, f)
-    # with open(filename, 'rb') as f:
-    #     data = dill.load(f)
+    with open(filename, 'rb') as f:
+        data = dill.load(f)
     print("Done")
     # train_X,test_X,train_y,test_y= randomize(data)
     sentiment_data = randomize(data)
@@ -200,18 +769,17 @@ def main():
     print("Cleaning data..")
     for i in range(0, len(train_X)):
         train_X[i] = clean_text(str(train_X[i]))
-    # # print(train_X[0])
-    # # print(train_y[0])
-    #
+
     for i in range(0, len(test_X)):
         test_X[i] = clean_text(str(test_X[i]))
 
+    print("For Unigram")
+    validation_unigram(train_X,train_y,test_X,test_y,data)
+    print("For Bigram")
+    validation_bigram(train_X,train_y,test_X,test_y,data)
+    print("For Unigram and Bigram")
+    validation_unigram_bigram(train_X,train_y,test_X,test_y,data)
 
-    validation(train_X,train_y,test_X,test_y,data)
-
-
-    # unigrams(test_X,test_y,data)
-    # bigrams(test_X,test_y,data)
     # build_classifiers_unigram_bigram(train_X,train_y)
     # unigram_bigram(test_X,test_y,data)
 
