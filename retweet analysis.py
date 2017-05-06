@@ -40,14 +40,14 @@ def read_data():
     print (data.shape)  # (25000, 3)
     #print (data["review"][0])  # Check out the review
     #print (data["sentiment"][0])  # Check out the sentiment (0/1)
-    # data = data.head(100)
+    # data = data.head(1000)
     return data
 
 # Shuffle the data
 
 def randomize(data):
     sentiment_data = list(zip(data["text_new"], data["isRetweet"]))
-    random.shuffle(sentiment_data)
+    # random.shuffle(sentiment_data)
     # train_X, test_X, train_y, test_y = train_test_split(data["text"], data["isRetweet"], test_size=0.2, random_state=0)
     return sentiment_data
     # print(train_X[0])
@@ -59,7 +59,7 @@ def train_data(sentiment_data):
     #return random_data
     # 80% for training
     train_X, train_y = zip(*sentiment_data[:6399])
-    # train_X, train_y = zip(*sentiment_data[:80])
+    # train_X, train_y = zip(*sentiment_data[:800])
 
     return list(train_X),list(train_y)
 
@@ -68,7 +68,7 @@ def train_data(sentiment_data):
 def test_data(sentiment_data):
     # Keep 20% for testin
     test_X, test_y = zip(*sentiment_data[6400:8000])
-    # test_X, test_y = zip(*sentiment_data[1:20])
+    # test_X, test_y = zip(*sentiment_data[801:1000])
 
     return list(test_X),list(test_y)
 
@@ -126,13 +126,14 @@ def preprocessing(tweets):
 
 
 def formatt(x):
-    if x == 'FALSE':
+    if x == False:
         return 0
     return 1
 
 def validation_unigram_bigram(train_X,train_y,test_X,test_y,data):
     print("validating..")
-
+    X = data["text_new"]
+    Y = data["isRetweet"]
     # cv = ShuffleSplit(n_splits=3, test_size=0.2, random_state=0)
     # gammas = np.logspace(-6, -1, 10)
     # parameters = {'kernel': ('linear', 'rbf'), 'C': [1, 10]}
@@ -196,6 +197,7 @@ def validation_unigram_bigram(train_X,train_y,test_X,test_y,data):
     ])
 
     print("Predicting..")
+
     predicted = cross_val_predict(clf_bernoulli, test_X, test_y, cv=10)
     prediction['BernoulliNB'] = predicted
 
@@ -210,37 +212,37 @@ def validation_unigram_bigram(train_X,train_y,test_X,test_y,data):
 
     predicted = cross_val_predict(clf_logisitic, test_X, test_y, cv=10)
     prediction['LogisticRegression'] = predicted
+    # print(prediction['LogisticRegression'])
 
     predicted = cross_val_predict(clf_multi, test_X, test_y, cv=10)
     prediction['MultinomialNB'] = predicted
+    # print(prediction['MultinomialNB'])
 
     predicted = cross_val_predict(clf_svm, test_X, test_y, cv=10)
     prediction['SVM'] = predicted
-
+    # print(predicted)
 
     print("validating..")
-    X = data["text_new"]
-    Y = data["isRetweet"]
 
-    scores = cross_val_score(clf_bernoulli, X, Y, cv=10)
-    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))                #0.80+-0.4
+    scores = cross_val_score(clf_bernoulli, test_X, test_y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.80+-0.4
 
-    scores = cross_val_score(clf_cart, X, Y, cv=10)
+    scores = cross_val_score(clf_cart, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_forest, X, Y, cv=10)
+    scores = cross_val_score(clf_forest, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_knn, X, Y, cv=10)
+    scores = cross_val_score(clf_knn, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_logisitic, X, Y, cv=10)
+    scores = cross_val_score(clf_logisitic, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_multi, X, Y, cv=10)
+    scores = cross_val_score(clf_multi, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_svm, X, Y, cv=10)
+    scores = cross_val_score(clf_svm, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
     print("validating..")
@@ -249,43 +251,51 @@ def validation_unigram_bigram(train_X,train_y,test_X,test_y,data):
     # print(predicted)
     # print(metrics.accuracy_score(test_y, predicted))  # 0.84
 
-    print("Confusion matrix for BernoulliNB Unigram..")
-    print( metrics.classification_report(test_y, prediction['BernoulliNB'], target_names=["TRUE", "FALSE"]))
+    print("Confusion matrix for BernoulliNB Unigram and Bigram..")
+    print(metrics.classification_report(test_y, prediction['BernoulliNB'], target_names=["TRUE", "FALSE"]))
 
-    print("Confusion matrix for Cart Unigram..")
+    print("Confusion matrix for Cart Unigram and Bigram..")
     print(metrics.classification_report(test_y, prediction['Cart'], target_names=["TRUE", "FALSE"]))
 
-    print("Confusion matrix for RandomForest Unigram..")
+    print("Confusion matrix for RandomForest Unigram and Bigram..")
     print(metrics.classification_report(test_y, prediction['RandomForest'], target_names=["TRUE", "FALSE"]))
 
-    print("Confusion matrix for KNN Unigram..")
+    print("Confusion matrix for KNN Unigram and Bigram..")
     print(metrics.classification_report(test_y, prediction['KNN'], target_names=["TRUE", "FALSE"]))
 
-    print("Confusion matrix for Logistic Regression Unigram..")
+    print("Confusion matrix for Logistic Regression Unigram and Bigram..")
     print(metrics.classification_report(test_y, prediction['LogisticRegression'], target_names=["TRUE", "FALSE"]))
 
-    print("Confusion matrix for MultinomialNB Unigram..")
+    print("Confusion matrix for MultinomialNB Unigram and Bigram..")
     print(metrics.classification_report(test_y, prediction['MultinomialNB'], target_names=["TRUE", "FALSE"]))
 
-    print("Confusion matrix for SVM Unigram..")
+    print("Confusion matrix for SVM Unigram and Bigram..")
     print(metrics.classification_report(test_y, prediction['SVM'], target_names=["TRUE", "FALSE"]))
 
     vfunc = np.vectorize(formatt)
     cmp = 0
-    colors = ['b', 'g', 'y', 'm', 'k','darkorange','aqua']
+    colors = ['b', 'g', 'y', 'm', 'k', 'darkorange', 'aqua']
+
     for model, predicted in prediction.items():
         # print(vfunc(predicted))
         # print(test_y)
         # print(data["Sentiment"])
         # print(np.array(data["Sentiment"]))
-        myarray = np.array(test_y)
-        # print(myarray)
+        # myarray = np.array(Y)
+        # # print(myarray)
         newarray = []
         for i in range(0, len(test_y)):
-            test_y[i] = int(test_y[i])
+            test_y[i] = formatt(test_y[i])
             newarray.append(test_y[i])
         # print(newarray)
         false_positive_rate, true_positive_rate, thresholds = roc_curve(newarray, vfunc(predicted))
+
+        # print(false_positive_rate)
+        # print(true_positive_rate)
+
+
+
+
         # roc_auc = auc(false_positive_rate, true_positive_rate)
         # plt.plot(false_positive_rate, true_positive_rate, colors[cmp], label='%s: AUC %0.2f' % (model, roc_auc))
         plt.plot(false_positive_rate, true_positive_rate, colors[cmp], label='%s:' % (model))
@@ -301,50 +311,40 @@ def validation_unigram_bigram(train_X,train_y,test_X,test_y,data):
     plt.xlabel('False Positive Rate')
     plt.show()
 
-    # filename = 'unigram_linear.sav'
-    # with open(filename, 'wb') as f:
-    #     dill.dump(data, f)
-    # with open(filename, 'rb') as f:
-    #     data = dill.load(f)
-
-    # estimator = svm.SVC(kernel='linear')
-    # classifier = GridSearchCV(estimator,parameters)
-    #
-    # # classifier = GridSearchCV(clf, cv=10, param_grid=dict(gamma=gammas))
-    # print(classifier)
-    # tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4],
-    #                      'C': [1, 10, 100, 1000]},
-    #                     {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
-    #
-    #
-    # scores = ['precision', 'recall']
-    #
-    # for score in scores:
-    #     print("# Tuning hyper-parameters for %s" % score)
-    #     print()
-    #
-    #     clf = GridSearchCV(svm.SVC(C=1), tuned_parameters, cv=5,
-    #                        scoring='%s_macro' % score)
-    #     print(clf)
-
-        # clf.fit(X,Y)
-        # print(clf.best_score_)
-        # print(clf.best_score_)
-    # scores = cross_val_score(classifier, X, Y, cv=10)
-    # print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
-    # print(classifier.score(test_X, test_y))
-
-    # clf.fit(train_X, train_y)
-    # print("validating..")
-
 
 def validation_unigram(train_X, train_y, test_X, test_y, data):
     print("validating..")
-
+    prediction = dict()
+    X = data["text_new"]
+    Y = data["isRetweet"]
+    """
     # cv = ShuffleSplit(n_splits=3, test_size=0.2, random_state=0)
     # gammas = np.logspace(-6, -1, 10)
     # parameters = {'kernel': ('linear', 'rbf'), 'C': [1, 10]}
-    prediction = dict()
+
+    clf1 = LinearSVC()
+    clf2 = MultinomialNB()
+    clf3 = LogisticRegression()
+    print("ewgwg")
+    predicted = cross_val_predict(clf1, test_X, test_y, cv=2)
+    prediction['svc'] = predicted
+
+    predicted = cross_val_predict(clf2, test_X, test_y, cv=2)
+ /   prediction['mnb'] = predicted
+
+    predicted = cross_val_predict(clf3, test_X, test_y, cv=2)
+    prediction['lr'] = predicted
+    print("validating..")
+    X = data["text_new"]
+    Y = data["isRetweet"]
+    scores = cross_val_score(clf1, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.80+-0.4
+    scores = cross_val_score(clf2, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.80+-0.4
+    scores = cross_val_score(clf3, X, Y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.80+-0.4
+
+    """
     clf_svm = Pipeline([
         ('vectorizer', CountVectorizer(analyzer="word",
                                        tokenizer=word_tokenize,
@@ -359,6 +359,7 @@ def validation_unigram(train_X, train_y, test_X, test_y, data):
                                        preprocessor=lambda text: text.replace("<br />", " "), )),
         ('classifier', MultinomialNB())
     ])
+
     clf_bernoulli = Pipeline([
         ('vectorizer', CountVectorizer(analyzer="word",
                                        tokenizer=word_tokenize,
@@ -366,6 +367,7 @@ def validation_unigram(train_X, train_y, test_X, test_y, data):
                                        preprocessor=lambda text: text.replace("<br />", " "), )),
         ('classifier', BernoulliNB())
     ])
+
     clf_logisitic = Pipeline([
         ('vectorizer', CountVectorizer(analyzer="word",
                                        tokenizer=word_tokenize,
@@ -373,6 +375,7 @@ def validation_unigram(train_X, train_y, test_X, test_y, data):
                                        preprocessor=lambda text: text.replace("<br />", " "), )),
         ('classifier', LogisticRegression())
     ])
+
     clf_forest = Pipeline([
         ('vectorizer', CountVectorizer(analyzer="word",
                                        tokenizer=word_tokenize,
@@ -397,6 +400,7 @@ def validation_unigram(train_X, train_y, test_X, test_y, data):
     ])
 
     print("Predicting..")
+
     predicted = cross_val_predict(clf_bernoulli, test_X, test_y, cv=10)
     prediction['BernoulliNB'] = predicted
 
@@ -411,36 +415,38 @@ def validation_unigram(train_X, train_y, test_X, test_y, data):
 
     predicted = cross_val_predict(clf_logisitic, test_X, test_y, cv=10)
     prediction['LogisticRegression'] = predicted
+    # print(prediction['LogisticRegression'])
 
     predicted = cross_val_predict(clf_multi, test_X, test_y, cv=10)
     prediction['MultinomialNB'] = predicted
+    # print(prediction['MultinomialNB'])
 
     predicted = cross_val_predict(clf_svm, test_X, test_y, cv=10)
     prediction['SVM'] = predicted
+    # print(predicted)
 
     print("validating..")
-    X = data["text_new"]
-    Y = data["isRetweet"]
 
-    scores = cross_val_score(clf_bernoulli, X, Y, cv=10)
+
+    scores = cross_val_score(clf_bernoulli, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.80+-0.4
 
-    scores = cross_val_score(clf_cart, X, Y, cv=10)
+    scores = cross_val_score(clf_cart, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_forest, X, Y, cv=10)
+    scores = cross_val_score(clf_forest, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_knn, X, Y, cv=10)
+    scores = cross_val_score(clf_knn, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_logisitic, X, Y, cv=10)
+    scores = cross_val_score(clf_logisitic, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_multi, X, Y, cv=10)
+    scores = cross_val_score(clf_multi, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_svm, X, Y, cv=10)
+    scores = cross_val_score(clf_svm, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
     print("validating..")
@@ -473,19 +479,23 @@ def validation_unigram(train_X, train_y, test_X, test_y, data):
     vfunc = np.vectorize(formatt)
     cmp = 0
     colors = ['b', 'g', 'y', 'm', 'k', 'darkorange', 'aqua']
+
     for model, predicted in prediction.items():
         # print(vfunc(predicted))
         # print(test_y)
         # print(data["Sentiment"])
         # print(np.array(data["Sentiment"]))
-        myarray = np.array(test_y)
-        # print(myarray)
+        # myarray = np.array(Y)
+        # # print(myarray)
         newarray = []
         for i in range(0, len(test_y)):
-            test_y[i] = int(test_y[i])
+            test_y[i] = formatt(test_y[i])
             newarray.append(test_y[i])
         # print(newarray)
         false_positive_rate, true_positive_rate, thresholds = roc_curve(newarray, vfunc(predicted))
+
+        # print(false_positive_rate)
+        # print(true_positive_rate)
         # roc_auc = auc(false_positive_rate, true_positive_rate)
         # plt.plot(false_positive_rate, true_positive_rate, colors[cmp], label='%s: AUC %0.2f' % (model, roc_auc))
         plt.plot(false_positive_rate, true_positive_rate, colors[cmp], label='%s:' % (model))
@@ -501,51 +511,19 @@ def validation_unigram(train_X, train_y, test_X, test_y, data):
     plt.xlabel('False Positive Rate')
     plt.show()
 
-    # filename = 'unigram_linear.sav'
-    # with open(filename, 'wb') as f:
-    #     dill.dump(data, f)
-    # with open(filename, 'rb') as f:
-    #     data = dill.load(f)
-
-    # estimator = svm.SVC(kernel='linear')
-    # classifier = GridSearchCV(estimator,parameters)
-    #
-    # # classifier = GridSearchCV(clf, cv=10, param_grid=dict(gamma=gammas))
-    # print(classifier)
-    # tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4],
-    #                      'C': [1, 10, 100, 1000]},
-    #                     {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
-    #
-    #
-    # scores = ['precision', 'recall']
-    #
-    # for score in scores:
-    #     print("# Tuning hyper-parameters for %s" % score)
-    #     print()
-    #
-    #     clf = GridSearchCV(svm.SVC(C=1), tuned_parameters, cv=5,
-    #                        scoring='%s_macro' % score)
-    #     print(clf)
-
-    # clf.fit(X,Y)
-    # print(clf.best_score_)
-    # print(clf.best_score_)
-    # scores = cross_val_score(classifier, X, Y, cv=10)
-    # print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
-    # print(classifier.score(test_X, test_y))
-
-    # clf.fit(train_X, train_y)
-    # print("validating..")
 
 
 def validation_bigram(train_X, train_y, test_X, test_y, data):
 
     print("validating..")
-
+    print("validating..")
+    prediction = dict()
+    X = data["text_new"]
+    Y = data["isRetweet"]
     # cv = ShuffleSplit(n_splits=3, test_size=0.2, random_state=0)
     # gammas = np.logspace(-6, -1, 10)
     # parameters = {'kernel': ('linear', 'rbf'), 'C': [1, 10]}
-    prediction = dict()
+
     clf_svm = Pipeline([
         ('vectorizer', CountVectorizer(analyzer="word",
                                        ngram_range=(2, 2),
@@ -580,7 +558,7 @@ def validation_bigram(train_X, train_y, test_X, test_y, data):
     ])
     clf_forest = Pipeline([
         ('vectorizer', CountVectorizer(analyzer="word",
-                                       ngram_range=(1, 2),
+                                       ngram_range=(2, 2),
                                        tokenizer=word_tokenize,
                                        # tokenizer=lambda text: mark_negation(word_tokenize(text)),
                                        preprocessor=lambda text: text.replace("<br />", " "), )),
@@ -605,6 +583,8 @@ def validation_bigram(train_X, train_y, test_X, test_y, data):
     ])
 
     print("Predicting..")
+
+
     predicted = cross_val_predict(clf_bernoulli, test_X, test_y, cv=10)
     prediction['BernoulliNB'] = predicted
 
@@ -619,37 +599,37 @@ def validation_bigram(train_X, train_y, test_X, test_y, data):
 
     predicted = cross_val_predict(clf_logisitic, test_X, test_y, cv=10)
     prediction['LogisticRegression'] = predicted
+    # print(prediction['LogisticRegression'])
 
     predicted = cross_val_predict(clf_multi, test_X, test_y, cv=10)
     prediction['MultinomialNB'] = predicted
+    # print(prediction['MultinomialNB'])
 
     predicted = cross_val_predict(clf_svm, test_X, test_y, cv=10)
     prediction['SVM'] = predicted
-
+    # print(predicted)
 
     print("validating..")
-    X = data["text_new"]
-    Y = data["isRetweet"]
 
-    scores = cross_val_score(clf_bernoulli, X, Y, cv=10)
-    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))                #0.80+-0.4
+    scores = cross_val_score(clf_bernoulli, test_X, test_y, cv=10)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.80+-0.4
 
-    scores = cross_val_score(clf_cart, X, Y, cv=10)
+    scores = cross_val_score(clf_cart, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_forest, X, Y, cv=10)
+    scores = cross_val_score(clf_forest, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_knn, X, Y, cv=10)
+    scores = cross_val_score(clf_knn, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_logisitic, X, Y, cv=10)
+    scores = cross_val_score(clf_logisitic, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_multi, X, Y, cv=10)
+    scores = cross_val_score(clf_multi, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
-    scores = cross_val_score(clf_svm, X, Y, cv=10)
+    scores = cross_val_score(clf_svm, test_X, test_y, cv=10)
     print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # 0.86+-0.4
 
     print("validating..")
@@ -659,7 +639,7 @@ def validation_bigram(train_X, train_y, test_X, test_y, data):
     # print(metrics.accuracy_score(test_y, predicted))  # 0.84
 
     print("Confusion matrix for BernoulliNB Bigram..")
-    print( metrics.classification_report(test_y, prediction['BernoulliNB'], target_names=["TRUE", "FALSE"]))
+    print(metrics.classification_report(test_y, prediction['BernoulliNB'], target_names=["TRUE", "FALSE"]))
 
     print("Confusion matrix for Cart Bigram..")
     print(metrics.classification_report(test_y, prediction['Cart'], target_names=["TRUE", "FALSE"]))
@@ -681,20 +661,28 @@ def validation_bigram(train_X, train_y, test_X, test_y, data):
 
     vfunc = np.vectorize(formatt)
     cmp = 0
-    colors = ['b', 'g', 'y', 'm', 'k','darkorange','aqua']
+    colors = ['b', 'g', 'y', 'm', 'k', 'darkorange', 'aqua']
+
     for model, predicted in prediction.items():
         # print(vfunc(predicted))
         # print(test_y)
         # print(data["Sentiment"])
         # print(np.array(data["Sentiment"]))
-        myarray = np.array(test_y)
-        # print(myarray)
+        # myarray = np.array(Y)
+        # # print(myarray)
         newarray = []
         for i in range(0, len(test_y)):
-            test_y[i] = int(test_y[i])
+            test_y[i] = formatt(test_y[i])
             newarray.append(test_y[i])
         # print(newarray)
         false_positive_rate, true_positive_rate, thresholds = roc_curve(newarray, vfunc(predicted))
+
+        # print(false_positive_rate)
+        # print(true_positive_rate)
+
+
+
+
         # roc_auc = auc(false_positive_rate, true_positive_rate)
         # plt.plot(false_positive_rate, true_positive_rate, colors[cmp], label='%s: AUC %0.2f' % (model, roc_auc))
         plt.plot(false_positive_rate, true_positive_rate, colors[cmp], label='%s:' % (model))
@@ -709,42 +697,6 @@ def validation_bigram(train_X, train_y, test_X, test_y, data):
     plt.ylabel('True Positive Rate')
     plt.xlabel('False Positive Rate')
     plt.show()
-
-    # filename = 'unigram_linear.sav'
-    # with open(filename, 'wb') as f:
-    #     dill.dump(data, f)
-    # with open(filename, 'rb') as f:
-    #     data = dill.load(f)
-
-    # estimator = svm.SVC(kernel='linear')
-    # classifier = GridSearchCV(estimator,parameters)
-    #
-    # # classifier = GridSearchCV(clf, cv=10, param_grid=dict(gamma=gammas))
-    # print(classifier)
-    # tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4],
-    #                      'C': [1, 10, 100, 1000]},
-    #                     {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
-    #
-    #
-    # scores = ['precision', 'recall']
-    #
-    # for score in scores:
-    #     print("# Tuning hyper-parameters for %s" % score)
-    #     print()
-    #
-    #     clf = GridSearchCV(svm.SVC(C=1), tuned_parameters, cv=5,
-    #                        scoring='%s_macro' % score)
-    #     print(clf)
-
-        # clf.fit(X,Y)
-        # print(clf.best_score_)
-        # print(clf.best_score_)
-    # scores = cross_val_score(classifier, X, Y, cv=10)
-    # print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
-    # print(classifier.score(test_X, test_y))
-
-    # clf.fit(train_X, train_y)
-    # print("validating..")
 
 def main():
     print("Reading Data..")
@@ -766,6 +718,8 @@ def main():
     train_X, train_y = train_data(sentiment_data)
     print("Dividing into test data..")
     test_X,test_y = test_data(sentiment_data)
+    print(test_y)
+    # exit(0)
     print("Cleaning data..")
     for i in range(0, len(train_X)):
         train_X[i] = clean_text(str(train_X[i]))
