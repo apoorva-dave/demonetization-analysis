@@ -1,3 +1,4 @@
+from sklearn.cluster import DBSCAN
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.grid_search import GridSearchCV
 
@@ -706,6 +707,7 @@ def main():
     # print(data["review"][0])
     print("Preprocessing")
     data = preprocessing(data)
+
     filename = 'preprocessed_data.sav'
     # # with open(filename, 'wb') as f:
     # #     dill.dump(data, f)
@@ -714,6 +716,7 @@ def main():
     print("Done")
     # train_X,test_X,train_y,test_y= randomize(data)
     sentiment_data = randomize(data)
+
     print("Dividing into train data..")
     train_X, train_y = train_data(sentiment_data)
     print("Dividing into test data..")

@@ -1,3 +1,4 @@
+import dill
 import pandas as pd  # data processing, CSV file I/O (e.g. pd.read_csv)
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from nltk.sentiment.util import *
@@ -11,14 +12,14 @@ from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 import numpy as np
 pd.options.mode.chained_assignment = None
-
+from sklearn.cluster import DBSCAN
 
 def read_data():
     # Getting data in tweets
     tweets = pd.read_csv('C:/Users/Apoorva/PycharmProjects/demonetization/input/demonetization-tweets.csv',
                          encoding="ISO-8859-1")
     # print(tweets)
-    tweets = tweets.head(99)
+    # tweets = tweets.head(99)
     return tweets
 
 
@@ -36,7 +37,7 @@ def preprocessing(tweets):
     for i in range(len(tweets['text'])):
         try:
             tweets['tweetos'][i] = tweets['text'].str.split(':')[i][0]
-            print(tweets['tweetos'][i])
+            # print(tweets['tweetos'][i])
         except AttributeError:
             tweets['tweetos'][i] = 'other'
 
@@ -494,16 +495,74 @@ def calculate_accuracy(tweets):
             count =  count+1
     print("The accuracy of selected tweets on Demonetization is "+str(count)+"%")
 
+def dbscan(tweets):
+    # tweets['text_sep'] = [''.join(z).strip() for z in tweets['text_new']]
+    tweets['text_lem'] = [''.join([nltk.WordNetLemmatizer().lemmatize(re.sub('[^A-Za-z]', ' ', line)) for line in lists]).strip() for lists in
+        tweets['text_new']]
+    ####
+
+    vectorizer = TfidfVectorizer(max_df=0.5, max_features=10000, min_df=1, stop_words='english', use_idf=True)
+    # vectorizer = TfidfVectorizer(max_df=0.5, max_features=10000, min_df=10, stop_words='english', use_idf=True)
+
+
+    X = vectorizer.fit_transform(tweets['text_lem'].str.upper())
+    X=X.todense()
+    filename = 'dbscan.csv'
+    path = 'C:/Users/Apoorva/PycharmProjects/demonetization/input/dbscan_output.csv'
+    dbscan_output = open(path, 'w')
+    # Writing to the file line by line:
+
+    for i in range(len(tweets['text'])):
+        dbscan_output.write(str(i) + ", ")
+        dbscan_output.write(str(X))
+    dbscan_output.close()
+    #print(X)
+    db=DBSCAN(eps=0.3,min_samples=5).fit(X)
+    core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
+    core_samples_mask[db.core_sample_indices_] = True
+    labels = db.labels_
+
+    # Number of clusters in labels, ignoring noise if present.
+    n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+
+    print('Estimated number of clusters: %d' % n_clusters_)
+    # print("Homogeneity: %0.3f" % metrics.homogeneity_score(X, labels))
+    # print("Completeness: %0.3f" % metrics.completeness_score(X, labels))
+    # print("V-measure: %0.3f" % metrics.v_measure_score(X, labels))
+    # print("Adjusted Rand Index: %0.3f"
+    #       % metrics.adjusted_rand_score(X, labels))
+    # print("Adjusted Mutual Information: %0.3f"
+    #       % metrics.adjusted_mutual_info_score(X, labels))
+    # print("Silhouette Coefficient: %0.3f"
+    #       % metrics.silhouette_score(X, labels))
+    unique_labels = set(labels)
+    colors = plt.cm.Spectral(np.linspace(0, 1, len(unique_labels)))
+    for k, col in zip(unique_labels, colors):
+        if k == -1:
+            # Black used for noise.
+            col = 'k'
+
+        class_member_mask = (labels == k)
+
+        xy = X[class_member_mask & core_samples_mask]
+        plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=col,markeredgecolor='k', markersize=14)
+
+        xy = X[class_member_mask & ~core_samples_mask]
+        plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=col, markeredgecolor='k', markersize=6)
+
+    plt.title('Estimated number of clusters: %d' % n_clusters_)
+    plt.show()
 def main():
     print("Reading Data..")
     tweets = read_data()
     print("Data Fetched")
     print("Preprocessing started..")
     preprocessing(tweets)
-    print("Preprocessing completed")
-    print("Analyzing sentiments..")
-    sentiment_analysis(tweets)
-    print("Analyzed sentiments")
+    # print("Preprocessing completed")
+    # dbscan(tweets)
+    # print("Analyzing sentiments..")
+    # sentiment_analysis(tweets)
+    # print("Analyzed sentiments")
     # line_plot(tweets)
     # write_to_file(tweets)
     # print("Generating Word clouds..")
@@ -511,7 +570,7 @@ def main():
     # wordcloud_by_province_pm(tweets)
     # wordcloud_by_province_looted(tweets)
     # print("Wordclouds generated")
-    # clustering(tweets)
+    clustering(tweets)
     # print("Plotting Time series analysis")
     # time_series_plot(tweets)
     # print("Done..")
